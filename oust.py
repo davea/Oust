@@ -1,7 +1,15 @@
 from __future__ import print_function
 
 import time
+
 import psmove
+try:
+    import blinkt
+    blinkt.set_brightness(0.05)
+    blinkt.set_pixel(0, 255, 255, 255)
+    blinkt.show()
+except ImportError:
+    blinkt = None
 
 # This nightmarish function was taken from stackoverflow
 def hsv_to_rgb(h, s, v):
@@ -34,18 +42,34 @@ def sleep_controllers(sleep=0.5, leds=(255,255,255), rumble=0, moves=[]):
             othermove.set_leds(*leds)
             othermove.update_leds()
 
+def set_blinkt(i, r, g, b):
+    if not blinkt:
+        return
+    blinkt.set_pixel(i, r, g, b)
+    blinkt.show()
+
+def reset_blinkt():
+    if not blinkt:
+        return
+    for i in range(8):
+        blinkt.set_pixel(i, 0, 0, 0)
+    blinkt.show()
 
 paired_controllers = []
 controllers_alive = {}
 usb_paired_controllers = []
 while True:
+    reset_blinkt()
     start = False
     while True:
+        set_blinkt(0, 128, 128, 128)
         moves = [psmove.PSMove(x) for x in range(psmove.count_connected())]
-        for move in moves:
+        for i, move in enumerate(moves, start=1):
             if move.this == None:
                 print("Move initialisation failed, reinitialising")
                 moves = []
+                set_blinkt(i, 255, 0, 0)
+                set_blinkt(0, 255, 0, 0)
                 break
 
             # If a controller is plugged in over USB, pair it and turn it white
@@ -57,6 +81,7 @@ while True:
                     print(move.get_serial()+" Connected")
                     move.set_leds(255,255,255)
                     move.update_leds()
+                    set_blinkt(i, 255, 0, 255)
                     continue
 
             # If the controller pairs over BT, add it to the list and turn it white
@@ -67,6 +92,7 @@ while True:
                     print(move.get_serial()+" Connected")
                     move.set_leds(255,255,255)
                     move.update_leds()
+                    set_blinkt(i, 0, 0, 255)
                     continue
 
             if move.poll():
@@ -77,8 +103,10 @@ while True:
 
                 if move.get_serial() in controllers_alive:
                     move.set_leds(255,255,255)
+                    set_blinkt(i, 0, 255, 0)
                 else:
                     move.set_leds(0,0,0)
+                    set_blinkt(i, 128, 64, 0)
 
                 # START starts the game early
                 if move.get_buttons() == 2048:
@@ -135,12 +163,13 @@ while True:
 
     running = True
     while running:
-
+        set_blinkt(0, 0, 255, 0)
         for serial, move in list(controllers_alive.items()):
 
             # Win animation / reset
             if len(controllers_alive) == 1:
                 print("WIN", serial)
+                set_blinkt(0, 128, 128, 128)
 
                 HSV = [(x*1.0/50, 0.9, 1) for x in range(50)]
                 colour_range = [[int(x) for x in hsv_to_rgb(*colour)] for colour in HSV]
